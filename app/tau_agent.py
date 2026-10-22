@@ -45,6 +45,7 @@ def run(root, prompt, model, timeout=180):
     home = root / "sessions" / sid
     home.mkdir(parents=True, exist_ok=True)
     env.update(
+        DARCY_OUTER_SANDBOX="tinfoil-container",
         HOME=str(home),
         XDG_CONFIG_HOME=str(root / "config"),
         XDG_STATE_HOME=str(home / "state"),

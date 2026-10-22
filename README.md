@@ -23,6 +23,9 @@ successful run; local execution alone does not prove confidential execution.
 No OpenShell or VM runs inside the cloud container. Tau tools and the control
 service share one trust zone. This is a demo for one owner, not a multi-tenant
 service or a boundary between malicious tools and the supervisor.
+The pinned Tau build carries Darcy's small outer-sandbox patch, scoped to
+`DARCY_OUTER_SANDBOX=tinfoil-container`. It omits Tau's nested mount namespace;
+the ordinary upstream path keeps its existing behavior.
 
 ## Host setup
 

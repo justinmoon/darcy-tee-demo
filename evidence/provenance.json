@@ -4,6 +4,7 @@
   "source_sha256": {
     "scripts/guest_bridge.py": "75867ca71f8c8c6f4a869d6f304c25c9b7dd378ad72283fa369742394d407cb0",
     "assets/tau-harness.yaml": "ec2744bf0a421be906f457af96bb87dadf83b66933ec9a869a016564866d7e9c",
-    "crates/daemon/src/sandbox.rs": "b81db5affcdc267f17412f2d422c9f3689eb182c762659bf3aa9147c90029c6a"
+    "crates/daemon/src/sandbox.rs": "b81db5affcdc267f17412f2d422c9f3689eb182c762659bf3aa9147c90029c6a",
+    "nix/tau-openshell.patch": "b2be2e13dd030f587153fd002eb4622ffc208e91783f195edfe7035b24a95839"
   }
 }

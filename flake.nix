@@ -6,6 +6,9 @@
     buildTau = pkgs: pkgs.rustPlatform.buildRustPackage {
       pname = "darcy-tau"; version = "0.2.1-dev";
       src = tau; cargoLock.lockFile = "${tau}/Cargo.lock";
+      patches = [ ./nix/tau-container.patch ];
+      cargoBuildType = "debug";
+      env.RUSTFLAGS = "-C debuginfo=0";
       cargoBuildFlags = [ "--package" "dpc-tau" ]; doCheck = false;
     };
     linux = import nixpkgs { system = "x86_64-linux"; };
@@ -44,6 +47,7 @@
           User = "1000:1000"; WorkingDir = "/workspace";
           Env = [ "PATH=/bin" "HOME=/workspace" "SSL_CERT_FILE=${linux.cacert}/etc/ssl/certs/ca-bundle.crt" "PYTHONDONTWRITEBYTECODE=1" "PYTHONUNBUFFERED=1" ];
           ExposedPorts."8080/tcp" = {};
+          Labels."org.opencontainers.image.source" = "https://github.com/justinmoon/darcy-tee-demo";
         };
       };
     };
