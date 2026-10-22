@@ -15,7 +15,7 @@ from client import signed_request
 from common import ROOT, credentials
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from local_container import LocalContainer
-from recovery import configure_remote_tools, put
+from recovery import VALIDATE, capture_tool_trace, configure_remote_tools, put
 from sandbox import (
     ALIAS,
     CONFIG,
@@ -49,7 +49,7 @@ def wait_started():
         if status != last:
             print("Sandbox: " + str(status), flush=True)
             last = status
-        if status in {"started", "running"}:
+        if status == "running":
             return
         if status in {"failed", "stopped", "error"}:
             save(DIRECTORY / "last-boot-failure.json", row)
@@ -129,6 +129,13 @@ def install():
     config = yaml.safe_load((ROOT / "tinfoil-config.yml").read_text())
     image = config["containers"][0]["image"]
     owner = config["containers"][0]["env"][0]["DARCY_OWNER_PUBLIC_KEY"]
+    existing = ssh("docker inspect --format '{{.Config.Image}}' " + NAME)
+    if existing.returncode == 0:
+        if existing.stdout.strip() != image:
+            raise RuntimeError(
+                "existing test agent uses another image; refusing to replace it"
+            )
+        return image
     # This is owner installation after base attestation, not part of base measurement.
     command("docker pull " + shlex.quote(image), timeout=240)
     digest = json.loads(
@@ -157,7 +164,7 @@ def install():
     return image
 
 
-def repair():
+def repair(transport_only=False, tool_probe=False, debug_probe=False):
     # Give the local agent only this boot's SSH owner identity and attested pin.
     profile = CONFIG.read_text()
     identity_line = next(
@@ -187,17 +194,72 @@ print(json.dumps(dict(returncode=r.returncode,stdout=r.stdout,stderr=r.stderr)))
         put(host, "/workspace/ssh.conf", profile.encode())
         put(host, "/workspace/remote.py", helper.encode())
         configure_remote_tools(host)
+        probe = host.request(
+            "exec", command="python3 /workspace/remote.py 'printf transport-ok'"
+        )
+        save(DIRECTORY / "recovery-transport.json", probe)
+        if probe["returncode"] != 0:
+            raise RuntimeError(
+                "local-to-Sandbox SSH failed: " + probe["stderr"][-2000:]
+            )
+        value = json.loads(probe["stdout"])
+        if value["returncode"] != 0 or value["stdout"] != "transport-ok":
+            raise RuntimeError(
+                "local-to-Sandbox SSH failed: " + value["stderr"][-2000:]
+            )
+        wrapped = host.request(
+            "exec",
+            command="python3 /workspace/remote_shell.py /bin/bash -c 'printf wrapper-ok'",
+        )
+        save(DIRECTORY / "recovery-wrapper.json", wrapped)
+        if wrapped["returncode"] != 0 or wrapped["stdout"] != "wrapper-ok":
+            raise RuntimeError(
+                "remote shell wrapper failed: " + wrapped["stderr"][-2000:]
+            )
+        if transport_only:
+            return {"transport": "real pinned SSH passed", "model_calls": 0}
+        if debug_probe:
+            debug = """import json
+from pathlib import Path
+source=Path('/app/tau_agent.py').read_text()
+start=source.index('                if kind in [')
+end=source.index('                    events.append(event)',start)
+source=source[:start]+'                if True:\\n'+source[end:]
+scope={'__file__':'/app/tau_agent.py'}
+exec(compile(source,'/app/tau_agent.py','exec'),scope)
+r=scope['run']('/workspace',"Use remote_shell exactly once to run printf ACTUAL-TOOL-OK. Report the exact tool response, including any error. Do not change files.",'gpt-oss-120b',timeout=25)
+r['events']=[e for e in r['events'] if ('tool' in e['event'] and 'register' not in e['event']) or 'notice' in e['event']]
+print(json.dumps(r,default=str))
+"""
+            put(host, "/workspace/debug_ui.py", debug.encode())
+            result = host.request("exec", command="python3 /workspace/debug_ui.py")
+            save(DIRECTORY / "debug-ui.json", result)
+            capture_tool_trace(host, DIRECTORY / "debug-ui-tool-trace.jsonl")
+            return result
+        if tool_probe:
+            result = host.request(
+                "run",
+                prompt="Use remote_shell once to run: printf 'ACTUAL-TOOL-OK'; cat /workspace/config/tau/harness.yaml. Report the exact tool output or the exact error. Do not change files.",
+            )
+            result["private_diagnostics"] = host.capture_diagnostics()
+            capture_tool_trace(host, DIRECTORY / "tool-probe-trace.jsonl")
+            return result
         result = host.request(
             "run",
             prompt="""The remote Tau agent fails to start. Diagnose and repair it using remote_shell.
 Every remote_shell command executes inside the REMOTE agent container through attested owner SSH.
 Do not print private keys or alter credentials.
 Inspect /workspace/config/tau/harness.yaml, /workspace/last-harness.stderr and shipped defaults/source under /app.
-Fix the cause, preserve inference settings, and check the repaired file. Use few commands and bounded output.
+Fix the cause and preserve inference settings. Inspect the shipped reference configuration, not guessed paths. Use few commands and bounded output.
+Before reporting success, use Tau's real config loader and fix any error:
+"""
+            + VALIDATE
+            + """
 Report the cause and fix in two sentences. A separate test will run the remote agent.""",
         )
         if not result["tools"]:
             raise AssertionError("local recovery agent used no tools")
+        result["private_diagnostics"] = host.capture_diagnostics()
         return result
 
 
@@ -218,13 +280,25 @@ def main():
         action="store_true",
         help="Resume an already installed test agent",
     )
+    parser.add_argument("--transport-only", action="store_true")
+    parser.add_argument(
+        "--keep-running",
+        action="store_true",
+        help="Keep this owned test VM running after the command",
+    )
     args = parser.parse_args()
     evidence = DIRECTORY / "e2e"
     evidence.mkdir(exist_ok=True)
     try:
         wait_started()
         print(attest(), flush=True)
-        image = None if args.installed else install()
+        image = install()
+        if args.transport_only:
+            print(json.dumps(repair(transport_only=True)), flush=True)
+            return
+        # Test setup: fresh gateway memory and known shipped config at initialize.
+        # Persistent workspace data stays in place; the agent still performs real tasks.
+        command("docker restart " + NAME)
         with Tunnel() as remote:
             auth = check(remote.base, remote.key)
             initialize(remote)
@@ -285,7 +359,8 @@ def main():
         save(evidence / "summary.json", summary)
         print(json.dumps(summary, indent=2), flush=True)
     finally:
-        lifecycle("stop")
+        if not args.keep_running:
+            lifecycle("stop")
 
 
 if __name__ == "__main__":

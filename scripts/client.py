@@ -19,12 +19,12 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 
 @contextmanager
-def ready_client(endpoint, repo, timeout=240):
+def ready_client(endpoint, repo, timeout=240, config=None):
     """Retry only pre-credential fetch failures while a new boot becomes ready."""
     deadline = time.monotonic() + timeout
     waiting = False
     while True:
-        client = Client(endpoint, repo)
+        client = Client(endpoint, repo, config=config)
         try:
             client.__enter__()
             break
@@ -44,9 +44,10 @@ def ready_client(endpoint, repo, timeout=240):
 
 
 class Client:
-    def __init__(self, endpoint, repo, owner=None, cli=None):
+    def __init__(self, endpoint, repo=None, owner=None, cli=None, config=None):
         self.endpoint = endpoint.removeprefix("https://").rstrip("/")
         self.repo = repo
+        self.config = config
         self.key = Ed25519PrivateKey.from_private_bytes(
             Path(owner or ROOT / ".cache/owner.key").read_bytes()
         )
@@ -68,8 +69,11 @@ class Client:
                 self.cli,
                 "--enclave",
                 self.endpoint,
-                "--repo",
-                self.repo,
+                *(
+                    ["--config", str(self.config)]
+                    if self.config
+                    else ["--repo", self.repo]
+                ),
                 "proxy",
                 "--bind",
                 "127.0.0.1",
@@ -154,11 +158,12 @@ def main():
     parser.add_argument("--repo", default=os.environ.get("DARCY_REPO"))
     parser.add_argument("--owner", default=os.environ.get("DARCY_OWNER_KEY"))
     parser.add_argument("--cli", default=os.environ.get("DARCY_TINFOIL_CLI"))
+    parser.add_argument("--config", default=os.environ.get("DARCY_CONFIG"))
     parser.add_argument("action", choices=["status", "initialize", "run", "exec"])
     parser.add_argument("argument", nargs="?")
     args = parser.parse_args()
-    if not args.endpoint or not args.repo:
-        parser.error("--endpoint and --repo are required")
+    if not args.endpoint or bool(args.repo) == bool(args.config):
+        parser.error("--endpoint and exactly one of --repo or --config are required")
     fields = {}
     if args.action == "initialize":
         fields = {
@@ -169,7 +174,9 @@ def main():
         fields = {"prompt": args.argument or sys.stdin.read()}
     elif args.action == "exec":
         fields = {"command": args.argument or sys.stdin.read()}
-    with Client(args.endpoint, args.repo, args.owner, args.cli) as client:
+    with Client(
+        args.endpoint, args.repo, args.owner, args.cli, config=args.config
+    ) as client:
         print(json.dumps(client.request(args.action, **fields), indent=2))
 
 

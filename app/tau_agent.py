@@ -170,6 +170,7 @@ def run(root, prompt, model, timeout=180):
                     "tool.started",
                     "tool.result",
                     "tool.error",
+                    "tool.result_display",
                     "provider.response_finished",
                     "agent.outer_turn_finished",
                     "ui.create_agent_result",

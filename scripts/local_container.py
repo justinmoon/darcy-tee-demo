@@ -78,8 +78,20 @@ class LocalContainer:
         return signed_request(self.base, self.key, action, **fields)
 
     def __exit__(self, *args):
+        if args and args[0] is not None:
+            self.capture_diagnostics()
         logs = subprocess.run(
             ["docker", "logs", self.name], capture_output=True, text=True
         )
         (ROOT / ".cache" / f"{self.name}.log").write_text(logs.stdout + logs.stderr)
         subprocess.run(["docker", "rm", "-f", self.name], capture_output=True)
+
+    def capture_diagnostics(self):
+        diagnostics = ROOT / ".cache" / (self.name + "-diagnostics")
+        diagnostics.mkdir(mode=0o700, exist_ok=True)
+        for source in ["sessions", "last-harness.stderr", "config/tau/harness.yaml"]:
+            subprocess.run(
+                ["docker", "cp", self.name + ":/workspace/" + source, str(diagnostics)],
+                capture_output=True,
+            )
+        return str(diagnostics)

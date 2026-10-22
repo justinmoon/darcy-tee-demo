@@ -42,9 +42,12 @@ from pathlib import Path
 from client import signed_request
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 key=Ed25519PrivateKey.from_private_bytes(Path('/workspace/remote-owner.key').read_bytes())
-print(json.dumps(signed_request('http://broken-agent:8080',key,'exec',command=sys.argv[1])))
+print(json.dumps(signed_request('http://broken-agent:8080',key,'exec',command='sleep 3; '+sys.argv[1])))
 """
             recovery = repair_with_helper(helper, network=network)
+            assert "wait" in recovery["tools"], (
+                "slow commands must use real Tau wait completion"
+            )
             (evidence / "recovery.json").write_text(json.dumps(recovery, indent=2))
             last = challenge(remote, "local repaired agent")
             (evidence / "after.json").write_text(json.dumps(last, indent=2))

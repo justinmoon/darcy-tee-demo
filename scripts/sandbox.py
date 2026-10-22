@@ -48,7 +48,7 @@ def key():
     return serialization.load_ssh_private_key(IDENTITY.read_bytes(), password=None)
 
 
-def lifecycle(action, name=ALIAS, workspace_size=4):
+def lifecycle(action, name=ALIAS, workspace_size=16):
     if action == "create":
         if STATE.exists():
             raise RuntimeError("Sandbox state exists; inspect it before another create")
@@ -80,13 +80,15 @@ def lifecycle(action, name=ALIAS, workspace_size=4):
     else:
         previous = json.loads(STATE.read_text())
         route = "/api/containers/" + previous["id"]
-        row = (
-            admin(route)
-            if action == "status"
-            else admin(
+        row = admin(route)
+        already = (action == "stop" and row["status"] == "stopped") or (
+            action == "start"
+            and row["status"] in {"running", "started", "deploying", "starting"}
+        )
+        if action != "status" and not already:
+            row = admin(
                 route + ("/stop" if action == "stop" else "/deploy"), {}, timeout=180
             )
-        )
     save(STATE, row)
     return row
 
@@ -94,10 +96,13 @@ def lifecycle(action, name=ALIAS, workspace_size=4):
 def attest():
     row = json.loads(STATE.read_text())
     source = reviewed_source(row)
+    policy = DIRECTORY / "tinfoil/known-configs.json"
+    save(policy, {"mode": "frozen", "record": "pin", "allow": {"pins": [source]}})
     env = {k: v for k, v in os.environ.items() if not k.startswith("TINFOIL_")}
     env.update(
         TINFOIL_ADMIN_KEY=credentials()["TINFOIL_ADMIN_KEY"],
         TINFOIL_CONFIG=str(DIRECTORY / "tinfoil/config.json"),
+        TINFOIL_KNOWN_CONFIGS=str(policy),
     )
     result = subprocess.run(
         [
@@ -224,7 +229,7 @@ if __name__ == "__main__":
     parser.add_argument("command", nargs="?")
     parser.add_argument("--name", default=ALIAS)
     parser.add_argument(
-        "--workspace-size", type=int, choices=[2, 4, 8, 16, 32, 64], default=4
+        "--workspace-size", type=int, choices=[2, 4, 8, 16, 32, 64], default=16
     )
     args = parser.parse_args()
     try:

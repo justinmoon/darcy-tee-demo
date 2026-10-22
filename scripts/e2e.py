@@ -1,8 +1,10 @@
 """Cloud E2E: attested harness/tools, injected failure, real local agent repair."""
 
 import argparse
+import hashlib
 import json
 import time
+from pathlib import Path
 
 from auth_checks import check
 from check_agent import challenge, inject_failure, wait_inference
@@ -13,12 +15,15 @@ from recovery import repair
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--endpoint", required=True)
-    p.add_argument("--repo", required=True)
+    p.add_argument("--repo")
+    p.add_argument("--config")
     args = p.parse_args()
+    if bool(args.repo) == bool(args.config):
+        p.error("choose exactly one of --repo or --config")
     started = time.monotonic()
     evidence = ROOT / ".cache/cloud-e2e"
     evidence.mkdir(parents=True, exist_ok=True)
-    with ready_client(args.endpoint, args.repo) as remote:
+    with ready_client(args.endpoint, args.repo, config=args.config) as remote:
         print("Verified expected Container release", flush=True)
         try:
             with Client(args.endpoint, "tinfoilsh/confidential-agent-sandbox@v0.1.25"):
@@ -51,7 +56,7 @@ if __name__ == "__main__":
             flush=True,
         )
         (evidence / "failure.txt").write_text(failure)
-        recovery = repair(args.endpoint, args.repo)
+        recovery = repair(args.endpoint, args.repo, config=args.config)
         print("Local Tau recovery agent finished; checking remote result", flush=True)
         (evidence / "recovery.json").write_text(json.dumps(recovery, indent=2))
         last = challenge(remote, "repaired confidential agent")
@@ -59,7 +64,9 @@ if __name__ == "__main__":
     summary = {
         "cloud_harness_and_tools": True,
         "mocked_components": [],
-        "release": args.repo,
+        "release": args.repo
+        or "local-config:sha256:"
+        + hashlib.sha256(Path(args.config).read_bytes()).hexdigest(),
         "wrong_workload": "rejected before credentials",
         "authorization": auth,
         "first_tools": first["tools"],

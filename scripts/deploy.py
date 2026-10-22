@@ -1,7 +1,9 @@
 """Bounded container lifecycle; saves accepted IDs before any follow-up operation."""
 
 import argparse
+import base64
 import json
+import time
 import urllib.error
 from pathlib import Path
 
@@ -11,11 +13,17 @@ STATE = ROOT / ".cache/deployment.json"
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
-    p.add_argument("action", choices=["create", "status", "stop", "start"])
+    p.add_argument("action", choices=["create", "status", "stop", "start", "wait"])
     p.add_argument("--repo", default="justinmoon/darcy-tee-demo")
     p.add_argument("--tag")
     p.add_argument("--name", default="darcy-tau-demo")
     p.add_argument("--state", type=Path, default=STATE)
+    p.add_argument("--until", choices=["running", "stopped"], default="running")
+    p.add_argument(
+        "--config",
+        type=Path,
+        help="Deploy exact local config bytes through the current API",
+    )
     args = p.parse_args()
     STATE = args.state
     try:
@@ -24,28 +32,56 @@ if __name__ == "__main__":
                 raise RuntimeError(
                     "deployment state exists; inspect status before creating another instance"
                 )
-            if not args.tag:
+            if args.config:
+                config = args.config.read_bytes()
+                row = admin(
+                    "/api/containers",
+                    {
+                        "name": args.name,
+                        "source": "local",
+                        "config": base64.b64encode(config).decode(),
+                    },
+                )
+                STATE.write_text(json.dumps(row, indent=2))
+                STATE.chmod(0o600)
+            elif not args.tag:
                 p.error("--tag required")
-            check = admin(
-                "/api/containers/validate", {"repo": args.repo, "tag": args.tag}
-            )
-            if not check.get("valid"):
-                raise RuntimeError(json.dumps(check))
-            row = admin(
-                "/api/containers",
-                {
-                    "name": args.name,
-                    "repo": args.repo,
-                    "tag": args.tag,
-                    "mark_latest_release": False,
-                },
-            )
+            else:
+                check = admin(
+                    "/api/containers/validate", {"repo": args.repo, "tag": args.tag}
+                )
+                if not check.get("valid"):
+                    raise RuntimeError(json.dumps(check))
+                row = admin(
+                    "/api/containers",
+                    {
+                        "name": args.name,
+                        "repo": args.repo,
+                        "tag": args.tag,
+                        "mark_latest_release": False,
+                    },
+                )
             STATE.write_text(json.dumps(row, indent=2))
             STATE.chmod(0o600)
         else:
             previous = json.loads(STATE.read_text())
             route = "/api/containers/" + previous["id"]
-            if args.action == "status":
+            if args.action == "wait":
+                deadline = time.monotonic() + 180
+                previous_status = None
+                while time.monotonic() < deadline:
+                    row = admin(route)
+                    if row["status"] != previous_status:
+                        print("Container: " + row["status"], flush=True)
+                        previous_status = row["status"]
+                    if row["status"] == args.until:
+                        break
+                    if row["status"] == "failed" and args.until == "running":
+                        raise RuntimeError(str(row.get("error_message")))
+                    time.sleep(5)
+                else:
+                    raise TimeoutError("Container did not reach " + args.until)
+            elif args.action == "status":
                 row = admin(route)
             else:
                 row = admin(

@@ -8,7 +8,7 @@ agents:
       roles:
         darcy:
           enable: true
-          tools: [shell, read, edit, replace, apply_patch, ls, grep, find, workdir]
+          tools: [shell, read, edit, replace, apply_patch, ls, grep, find, workdir, wait, cancel]
           prompt_override: darcy
 extensions:
   provider-builtin:
