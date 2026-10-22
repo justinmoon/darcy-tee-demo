@@ -19,6 +19,13 @@ if __name__ == "__main__":
     evidence = ROOT / ".cache/cloud-e2e"
     evidence.mkdir(parents=True, exist_ok=True)
     with Client(args.endpoint, args.repo) as remote:
+        try:
+            with Client(args.endpoint, "tinfoilsh/confidential-agent-sandbox@v0.1.25"):
+                raise AssertionError("wrong expected workload passed verification")
+        except RuntimeError as error:
+            if "attestation proxy failed" not in str(error):
+                raise
+            (evidence / "wrong-workload.txt").write_text(str(error))
         auth = check(f"http://127.0.0.1:{remote.port}", remote.key)
         wait_inference(remote)
         status = remote.request("status")
@@ -45,6 +52,7 @@ if __name__ == "__main__":
         "cloud_harness_and_tools": True,
         "mocked_components": [],
         "release": args.repo,
+        "wrong_workload": "rejected before credentials",
         "authorization": auth,
         "first_tools": first["tools"],
         "fault": "invalid harness YAML",

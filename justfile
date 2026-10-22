@@ -24,5 +24,7 @@ local-e2e:
     nix develop --command python3 scripts/local_e2e.py
 deploy *args:
     nix develop --command python3 scripts/deploy.py {{args}}
+configure-release digest:
+    nix develop --command python3 scripts/configure_release.py {{quote(digest)}}
 e2e endpoint repo:
     nix develop --command python3 scripts/e2e.py --endpoint {{quote(endpoint)}} --repo {{quote(repo)}}

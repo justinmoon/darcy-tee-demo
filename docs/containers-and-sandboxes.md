@@ -1,7 +1,7 @@
 # Containers and Sandboxes
 
-Source review: 2026-10-21. No live Sandbox test; this org reports
-`sandboxes_enabled: false`.
+Source review: 2026-10-21. Sandbox access changed from disabled to enabled during
+the demo build. Live Sandbox validation remains pending.
 
 | | Containers | Sandboxes |
 |---|---|---|
@@ -27,11 +27,11 @@ returned 404 without access. Full Monitor review remains open.
 
 V3 attestation, encrypted volumes, attested keys/SSH and CLI verified connections
 are beta. The inference API and attestation in general are not all labeled beta.
-The account gate confirms lack of Sandbox access; it does not establish a public
-launch date or support promise.
+The account gate controls Sandbox access; it does not establish a public launch
+date or support promise.
 
-Decision: keep this small demo on Containers. Ask for Sandbox access for a later
-comparison before building our own persistent workspace/SSH/credential service.
+Decision: complete the small Containers demo first, then test Sandboxes before
+building our own persistent workspace/SSH/credential service.
 An owner recovery path helps when Tau fails. It cannot revive a dead confidential
 VM or unlock a disk after loss of its keys; those need a restart/recovery design.
 
