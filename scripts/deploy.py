@@ -45,7 +45,8 @@ if __name__ == "__main__":
                 row = admin(route)
             else:
                 row = admin(
-                    route + ("/stop" if args.action == "stop" else "/deploy"), {}
+                    route + ("/stop" if args.action == "stop" else "/deploy"),
+                    {"tag": args.tag} if args.action == "start" and args.tag else {},
                 )
             STATE.write_text(json.dumps(row, indent=2))
         print(
