@@ -28,3 +28,20 @@
          Ok((command, Some(empty_mask)))
      }
  }
+--- a/crates/tau-ext-shell/src/lib.rs
++++ b/crates/tau-ext-shell/src/lib.rs
+@@ -1013,7 +1013,13 @@
+             tau_proto::TURN_MANIPULATOR_TOOL_TAG,
+         ]),
+         enabled_by_default: true,
+-        background_support: None,
++        background_support: if std::env::var_os("DARCY_BLOCKING_SHELL").as_deref()
++            == Some(std::ffi::OsStr::new("1"))
++        {
++            Some(tau_proto::BackgroundSupport::Never)
++        } else {
++            None
++        },
+         examples: vec![ToolExample {
+             id: "run-command".to_owned(),
+             title: Some("Run a command".to_owned()),

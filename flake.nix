@@ -10,6 +10,7 @@
       cargoBuildType = "debug";
       env.RUSTFLAGS = "-C debuginfo=0";
       cargoBuildFlags = [ "--package" "dpc-tau" ]; doCheck = false;
+      postInstall = "${pkgs.stdenv.cc.bintools.targetPrefix}strip --strip-all $out/bin/tau";
     };
     linux = import nixpkgs { system = "x86_64-linux"; };
     mac = import nixpkgs { system = "aarch64-darwin"; };

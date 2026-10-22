@@ -45,8 +45,20 @@ key=Ed25519PrivateKey.from_private_bytes(Path('/workspace/remote-owner.key').rea
 print(json.dumps(signed_request('http://broken-agent:8080',key,'exec',command='sleep 3; '+sys.argv[1])))
 """
             recovery = repair_with_helper(helper, network=network)
-            assert "wait" in recovery["tools"], (
-                "slow commands must use real Tau wait completion"
+            calls = {
+                e["payload"]["call_id"]
+                for e in recovery["events"]
+                if e["event"] == "tool.started"
+                and e["payload"]["tool_name"] == "remote_shell"
+            }
+            done = {
+                e["payload"]["call_id"]
+                for e in recovery["events"]
+                if e["event"] == "tool.result_display"
+                and e["payload"].get("kind") != "background_placeholder"
+            }
+            assert calls and calls <= done, (
+                "every slow remote command must return a real terminal result"
             )
             (evidence / "recovery.json").write_text(json.dumps(recovery, indent=2))
             last = challenge(remote, "local repaired agent")
