@@ -164,7 +164,7 @@ def install():
     return image
 
 
-def repair(transport_only=False, tool_probe=False, debug_probe=False, model="kimi-k3"):
+def repair(transport_only=False, model="gpt-oss-120b"):
     # Give the local agent only this boot's SSH owner identity and attested pin.
     profile = CONFIG.read_text()
     identity_line = next(
@@ -227,32 +227,6 @@ print(json.dumps(dict(returncode=r.returncode,stdout=r.stdout,stderr=r.stderr)))
                 "model_calls": 0,
                 "effective_tools": catalog,
             }
-        if debug_probe:
-            debug = """import json
-from pathlib import Path
-source=Path('/app/tau_agent.py').read_text()
-start=source.index('                if kind in [')
-end=source.index('                    events.append(event)',start)
-source=source[:start]+'                if True:\\n'+source[end:]
-scope={'__file__':'/app/tau_agent.py'}
-exec(compile(source,'/app/tau_agent.py','exec'),scope)
-r=scope['run']('/workspace',"Use remote_shell exactly once to run printf ACTUAL-TOOL-OK. Report the exact tool response, including any error. Do not change files.",'gpt-oss-120b',timeout=25)
-r['events']=[e for e in r['events'] if ('tool' in e['event'] and 'register' not in e['event']) or 'notice' in e['event']]
-print(json.dumps(r,default=str))
-"""
-            put(host, "/workspace/debug_ui.py", debug.encode())
-            result = host.request("exec", command="python3 /workspace/debug_ui.py")
-            save(DIRECTORY / "debug-ui.json", result)
-            capture_tool_trace(host, DIRECTORY / "debug-ui-tool-trace.jsonl")
-            return result
-        if tool_probe:
-            result = host.request(
-                "run",
-                prompt="Use remote_shell once to run: printf 'ACTUAL-TOOL-OK'; cat /workspace/config/tau/harness.yaml. Report the exact tool output or the exact error. Do not change files.",
-            )
-            result["private_diagnostics"] = host.capture_diagnostics()
-            capture_tool_trace(host, DIRECTORY / "tool-probe-trace.jsonl")
-            return result
         result = host.request(
             "run",
             prompt="""The remote Tau agent fails to start. Diagnose and repair it using remote_shell.
@@ -268,7 +242,7 @@ Report the cause and fix in two sentences. A separate test will run the remote a
         )
         if not result["tools"]:
             raise AssertionError("local recovery agent used no tools")
-        result["private_diagnostics"] = host.capture_diagnostics()
+        capture_tool_trace(host, DIRECTORY / "recovery-tools.jsonl")
         return result
 
 
@@ -284,11 +258,6 @@ def initialize(remote):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--installed",
-        action="store_true",
-        help="Resume an already installed test agent",
-    )
     parser.add_argument("--transport-only", action="store_true")
     parser.add_argument(
         "--keep-running",
@@ -299,6 +268,7 @@ def main():
     evidence = DIRECTORY / "e2e"
     evidence.mkdir(exist_ok=True)
     try:
+        lifecycle("start")
         wait_started()
         print(attest(), flush=True)
         image = install()

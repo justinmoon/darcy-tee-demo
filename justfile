@@ -37,3 +37,5 @@ sandbox *args:
     nix develop --command python3 scripts/sandbox.py {{args}}
 sandbox-e2e *args:
     nix develop --command python3 scripts/sandbox_e2e.py {{args}}
+sandbox-chat prompt:
+    nix develop --command python3 scripts/sandbox_chat.py {{quote(prompt)}}

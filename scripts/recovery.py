@@ -34,7 +34,7 @@ with Client(ENDPOINT,REPO,owner='/workspace/remote-owner.key',cli='/bin/tinfoil'
     return repair_with_helper(helper, files=files)
 
 
-def repair_with_helper(helper, network=None, files=None, model="kimi-k3"):
+def repair_with_helper(helper, network=None, files=None, model="gpt-oss-120b"):
     with LocalContainer(
         network=network, alias="recovery-agent" if network else None
     ) as host:
