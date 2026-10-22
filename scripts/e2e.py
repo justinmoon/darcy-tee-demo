@@ -19,6 +19,7 @@ if __name__ == "__main__":
     evidence = ROOT / ".cache/cloud-e2e"
     evidence.mkdir(parents=True, exist_ok=True)
     with Client(args.endpoint, args.repo) as remote:
+        print("Verified expected Container release", flush=True)
         try:
             with Client(args.endpoint, "tinfoilsh/confidential-agent-sandbox@v0.1.25"):
                 raise AssertionError("wrong expected workload passed verification")
@@ -27,6 +28,7 @@ if __name__ == "__main__":
                 raise
             (evidence / "wrong-workload.txt").write_text(str(error))
         auth = check(f"http://127.0.0.1:{remote.port}", remote.key)
+        print("Wrong workload rejected; owner authorization checks passed", flush=True)
         wait_inference(remote)
         status = remote.request("status")
         assert (
@@ -41,10 +43,16 @@ if __name__ == "__main__":
                 model="gpt-oss-120b",
             )
         first = challenge(remote, "confidential agent")
+        print("Cloud agent passed hidden-file challenge with real tools", flush=True)
         (evidence / "before.json").write_text(json.dumps(first, indent=2))
         failure = inject_failure(remote)
+        print(
+            "Actual Tau startup fault confirmed; owner control remains reachable",
+            flush=True,
+        )
         (evidence / "failure.txt").write_text(failure)
         recovery = repair(args.endpoint, args.repo)
+        print("Local Tau recovery agent finished; checking remote result", flush=True)
         (evidence / "recovery.json").write_text(json.dumps(recovery, indent=2))
         last = challenge(remote, "repaired confidential agent")
         (evidence / "after.json").write_text(json.dumps(last, indent=2))

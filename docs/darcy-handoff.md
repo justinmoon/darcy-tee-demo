@@ -17,6 +17,14 @@ Changes worth carrying back:
 - Keep Linux compilation on nixbuild.net; assemble the image with macOS
   `dockerTools` and explicit `architecture = "amd64"`. Downloading the assembled
   archive from the remote builder was much slower.
+- Encrypted HTTP forwarding streams decrypted request bodies without a known
+  length. A server that requires `Content-Length` rejects valid signed requests.
+  `app/http_body.py` adds bounded chunk decoding; its socket test covers real
+  signatures, both body formats, oversize bodies and ambiguous framing.
+
+Read-only check at 20:09 local time: Darcy now ships the named `darcy` prompt
+template. Its Python bridge still uses `bufsize=0`; the buffered-pipe finding
+above remains worth carrying back. No files or processes in that session changed.
 
 The real local test passed an unknown-file transformation, then broke Tau's YAML
 and confirmed that the separate owner control API stayed reachable. That is local
