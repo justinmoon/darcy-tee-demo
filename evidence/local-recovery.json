@@ -1,0 +1,34 @@
+{
+  "location": "two local Linux containers; not a cloud TEE harness",
+  "inference": "real Tinfoil gpt-oss-120b through verified proxy",
+  "mocked_components": [],
+  "authorization": {
+    "anonymous": "denied",
+    "wrong_owner": "denied",
+    "signed_owner": "accepted",
+    "replay": "denied"
+  },
+  "first_tools": [
+    "read",
+    "shell",
+    "shell",
+    "read"
+  ],
+  "recovery_tools": [
+    "remote_shell",
+    "remote_shell",
+    "remote_shell",
+    "remote_shell",
+    "remote_shell",
+    "remote_shell",
+    "remote_shell",
+    "remote_shell"
+  ],
+  "repaired_tools": [
+    "read",
+    "shell",
+    "read"
+  ],
+  "failure": "actual Tau invalid YAML startup error",
+  "cloud_attestation_tested": false
+}

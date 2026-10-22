@@ -25,6 +25,8 @@ stage-image:
     shasum -a 256 .cache/image.tar.gz
 local-e2e:
     nix develop --command python3 scripts/local_e2e.py
+local-recovery-e2e:
+    nix develop --command python3 scripts/local_recovery_e2e.py
 deploy *args:
     nix develop --command python3 scripts/deploy.py {{args}}
 configure-release digest:

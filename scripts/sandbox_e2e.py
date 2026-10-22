@@ -15,7 +15,7 @@ from client import signed_request
 from common import ROOT, credentials
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from local_container import LocalContainer
-from recovery import put
+from recovery import configure_remote_tools, put
 from sandbox import (
     ALIAS,
     CONFIG,
@@ -49,12 +49,15 @@ def wait_started():
         if status != last:
             print("Sandbox: " + str(status), flush=True)
             last = status
-        if status == "started":
+        if status in {"started", "running"}:
             return
         if status in {"failed", "stopped", "error"}:
+            save(DIRECTORY / "last-boot-failure.json", row)
             raise RuntimeError(
                 "Sandbox boot failed: "
-                + json.dumps(row.get("last_deploy_attempt_error"))
+                + json.dumps(
+                    row.get("error_message") or row.get("last_deploy_attempt_error")
+                )
             )
         time.sleep(10)
     raise TimeoutError("Sandbox boot exceeded ten minutes")
@@ -183,11 +186,12 @@ print(json.dumps(dict(returncode=r.returncode,stdout=r.stdout,stderr=r.stderr)))
         put(host, "/workspace/known_hosts", PINS.read_bytes())
         put(host, "/workspace/ssh.conf", profile.encode())
         put(host, "/workspace/remote.py", helper.encode())
+        configure_remote_tools(host)
         result = host.request(
             "run",
-            prompt="""The remote Tau agent fails to start. Diagnose and repair it using shell tools.
-Run remote commands with: python3 /workspace/remote.py 'COMMAND'
-The helper uses owner SSH pinned to an attested host key. Do not print private keys or alter credentials.
+            prompt="""The remote Tau agent fails to start. Diagnose and repair it using remote_shell.
+Every remote_shell command executes inside the REMOTE agent container through attested owner SSH.
+Do not print private keys or alter credentials.
 Inspect /workspace/config/tau/harness.yaml, /workspace/last-harness.stderr and shipped defaults/source under /app.
 Fix the cause, preserve inference settings, and check the repaired file. Use few commands and bounded output.
 Report the cause and fix in two sentences. A separate test will run the remote agent.""",

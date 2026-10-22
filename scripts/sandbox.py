@@ -44,7 +44,7 @@ def key():
     return serialization.load_ssh_private_key(IDENTITY.read_bytes(), password=None)
 
 
-def lifecycle(action):
+def lifecycle(action, name=ALIAS, workspace_size=4):
     if action == "create":
         if STATE.exists():
             raise RuntimeError("Sandbox state exists; inspect it before another create")
@@ -55,11 +55,11 @@ def lifecycle(action):
         row = admin(
             "/api/containers",
             {
-                "name": ALIAS,
+                "name": name,
                 "repo": REPO,
                 "tag": TAG,
                 "mark_latest_release": False,
-                "workspace_size_gb": 4,
+                "workspace_size_gb": workspace_size,
                 "variables": {
                     "SANDBOX_OWNER_PUBLIC_KEY": owner,
                     "SANDBOX_INSTANCE_ID": str(uuid.uuid4()),
@@ -147,6 +147,10 @@ if __name__ == "__main__":
         "action", choices=["create", "status", "stop", "start", "attest", "exec"]
     )
     parser.add_argument("command", nargs="?")
+    parser.add_argument("--name", default=ALIAS)
+    parser.add_argument(
+        "--workspace-size", type=int, choices=[2, 4, 8, 16, 32, 64], default=4
+    )
     args = parser.parse_args()
     try:
         if args.action == "attest":
@@ -164,7 +168,9 @@ if __name__ == "__main__":
             )
             raise SystemExit(result.returncode)
         else:
-            row = lifecycle(args.action)
+            row = lifecycle(
+                args.action, name=args.name, workspace_size=args.workspace_size
+            )
             print(
                 json.dumps(
                     {
