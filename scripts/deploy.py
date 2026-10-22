@@ -3,6 +3,7 @@
 import argparse
 import json
 import urllib.error
+from pathlib import Path
 
 from common import ROOT, admin
 
@@ -13,7 +14,10 @@ if __name__ == "__main__":
     p.add_argument("action", choices=["create", "status", "stop", "start"])
     p.add_argument("--repo", default="justinmoon/darcy-tee-demo")
     p.add_argument("--tag")
+    p.add_argument("--name", default="darcy-tau-demo")
+    p.add_argument("--state", type=Path, default=STATE)
     args = p.parse_args()
+    STATE = args.state
     try:
         if args.action == "create":
             if STATE.exists():
@@ -30,7 +34,7 @@ if __name__ == "__main__":
             row = admin(
                 "/api/containers",
                 {
-                    "name": "darcy-tau-demo",
+                    "name": args.name,
                     "repo": args.repo,
                     "tag": args.tag,
                     "mark_latest_release": False,

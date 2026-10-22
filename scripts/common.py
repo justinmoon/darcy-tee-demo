@@ -23,7 +23,7 @@ def credentials():
     return values
 
 
-def admin(route, data=None, method=None):
+def admin(route, data=None, method=None, timeout=45):
     key = credentials()["TINFOIL_ADMIN_KEY"]
     req = urllib.request.Request(
         "https://api.tinfoil.sh" + route,
@@ -35,6 +35,6 @@ def admin(route, data=None, method=None):
             "Content-Type": "application/json",
         },
     )
-    with urllib.request.urlopen(req, timeout=45) as response:
+    with urllib.request.urlopen(req, timeout=timeout) as response:
         body = response.read()
         return json.loads(body) if body else None

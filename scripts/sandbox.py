@@ -66,6 +66,7 @@ def lifecycle(action):
                     "NO_MONITOR": "1",
                 },
             },
+            timeout=180,
         )
     else:
         previous = json.loads(STATE.read_text())
@@ -73,7 +74,9 @@ def lifecycle(action):
         row = (
             admin(route)
             if action == "status"
-            else admin(route + ("/stop" if action == "stop" else "/deploy"), {})
+            else admin(
+                route + ("/stop" if action == "stop" else "/deploy"), {}, timeout=180
+            )
         )
     save(STATE, row)
     return row
