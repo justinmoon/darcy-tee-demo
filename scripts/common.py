@@ -36,4 +36,5 @@ def admin(route, data=None, method=None):
         },
     )
     with urllib.request.urlopen(req, timeout=45) as response:
-        return json.load(response)
+        body = response.read()
+        return json.loads(body) if body else None

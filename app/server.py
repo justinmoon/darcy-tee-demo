@@ -10,7 +10,8 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from security import Owner, Unauthorized
+from http_body import read_body
+from security import Owner
 from tau_agent import configure, run
 
 ROOT = Path(os.environ.get("DARCY_WORKSPACE", "/workspace"))
@@ -67,12 +68,9 @@ class Gateway(BaseHTTPRequestHandler):
             MODEL_REQUESTS += 1
         if self.path != "/v1/chat/completions" or not KEY:
             return self.send_error(503)
-        length = int(self.headers.get("Content-Length", "0"))
-        if length <= 0 or length > 2 * 1024 * 1024:
-            return self.send_error(413)
         started = False
         try:
-            data = json.loads(self.rfile.read(length))
+            data = json.loads(read_body(self, 2 * 1024 * 1024))
             data["model"] = MODEL
             data["max_tokens"] = min(int(data.get("max_tokens", 2048)), 2048)
             data.pop("chat_template_kwargs", None)
@@ -125,10 +123,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path != "/control":
             return self.reply(404, {"error": "not found"})
         try:
-            n = int(self.headers.get("Content-Length", "0"))
-            if n < 1 or n > 128 * 1024:
-                raise Unauthorized("invalid length")
-            p = OWNER.verify(self.rfile.read(n))
+            p = OWNER.verify(read_body(self, 128 * 1024))
             action = p["action"]
         except Exception:
             return self.reply(401, {"error": "owner authentication required"})

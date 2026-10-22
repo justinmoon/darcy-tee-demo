@@ -28,3 +28,7 @@ configure-release digest:
     nix develop --command python3 scripts/configure_release.py {{quote(digest)}}
 e2e endpoint repo:
     nix develop --command python3 scripts/e2e.py --endpoint {{quote(endpoint)}} --repo {{quote(repo)}}
+sandbox *args:
+    nix develop --command python3 scripts/sandbox.py {{args}}
+sandbox-e2e *args:
+    nix develop --command python3 scripts/sandbox_e2e.py {{args}}
