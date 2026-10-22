@@ -2,13 +2,17 @@
 
 import argparse
 import base64
+import copy
+import hashlib
 import json
 import os
 import re
 import subprocess
 import urllib.error
+import urllib.request
 import uuid
 
+import yaml
 from common import ROOT, admin, credentials
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -52,6 +56,15 @@ def lifecycle(action, name=ALIAS, workspace_size=4):
             "ed25519:"
             + base64.b64encode(key().public_key().public_bytes_raw()).decode()
         )
+        variables = {
+            "SANDBOX_OWNER_PUBLIC_KEY": owner,
+            "SANDBOX_INSTANCE_ID": str(uuid.uuid4()),
+            "NO_MONITOR": "1",
+        }
+        save(
+            DIRECTORY / "create-intent.json",
+            {"name": name, "workspace_size": workspace_size, "variables": variables},
+        )
         row = admin(
             "/api/containers",
             {
@@ -60,11 +73,7 @@ def lifecycle(action, name=ALIAS, workspace_size=4):
                 "tag": TAG,
                 "mark_latest_release": False,
                 "workspace_size_gb": workspace_size,
-                "variables": {
-                    "SANDBOX_OWNER_PUBLIC_KEY": owner,
-                    "SANDBOX_INSTANCE_ID": str(uuid.uuid4()),
-                    "NO_MONITOR": "1",
-                },
+                "variables": variables,
             },
             timeout=180,
         )
@@ -84,6 +93,7 @@ def lifecycle(action, name=ALIAS, workspace_size=4):
 
 def attest():
     row = json.loads(STATE.read_text())
+    source = reviewed_source(row)
     env = {k: v for k, v in os.environ.items() if not k.startswith("TINFOIL_")}
     env.update(
         TINFOIL_ADMIN_KEY=credentials()["TINFOIL_ADMIN_KEY"],
@@ -93,7 +103,7 @@ def attest():
         [
             str(ROOT / ".cache/bin/tinfoil"),
             "--repo",
-            REPO + "@" + TAG,
+            source,
             "attest-ssh",
             row["id"],
             "--identity",
@@ -130,6 +140,71 @@ def attest():
     CONFIG.chmod(0o600)
     PINS.chmod(0o600)
     return "Attestation verified; disk unlocked; SSH profile saved inside this project"
+
+
+def reviewed_source(row):
+    """Check all code/settings against the pinned template before accepting its personal config."""
+    base = DIRECTORY / "base-release/tinfoil-config.yml"
+    expected_sha = "1ba86daaef769abf050193e5440c3238a0c24c572cc8b963e0673d9e9ffc508b"
+    if not base.exists():
+        base.parent.mkdir(parents=True, exist_ok=True)
+        with urllib.request.urlopen(
+            "https://github.com/"
+            + REPO
+            + "/releases/download/"
+            + TAG
+            + "/tinfoil-config.yml",
+            timeout=45,
+        ) as response:
+            base.write_bytes(response.read())
+    if hashlib.sha256(base.read_bytes()).hexdigest() != expected_sha:
+        raise RuntimeError("Sandbox release template hash changed")
+    actual = yaml.safe_load(row["config"])
+    env = {k: v for entry in actual["containers"][0]["env"] for k, v in entry.items()}
+    owner = (
+        "ed25519:" + base64.b64encode(key().public_key().public_bytes_raw()).decode()
+    )
+    if env.get("SANDBOX_OWNER_PUBLIC_KEY") != owner or env.get("NO_MONITOR") != "1":
+        raise RuntimeError("Sandbox owner or network mode changed")
+    uuid.UUID(env["SANDBOX_INSTANCE_ID"])
+    intent_path = DIRECTORY / "create-intent.json"
+    if intent_path.exists():
+        intent = json.loads(intent_path.read_text())
+        if intent["name"] != row["name"] or intent["variables"] != env:
+            raise RuntimeError("Sandbox no longer matches local create intent")
+        size = intent["workspace_size"]
+    else:
+        # Existing test instance predates intent recording: approve only the
+        # reviewed 16 GB template and this machine's owner key, then pin it.
+        size = 16
+    expected = copy.deepcopy(yaml.safe_load(base.read_text()))
+    expected["containers"][0]["env"] = [
+        {k: env[k]}
+        for k in ["SANDBOX_OWNER_PUBLIC_KEY", "SANDBOX_INSTANCE_ID", "NO_MONITOR"]
+    ]
+    expected["volumes"][0]["size"] = str(size) + "GB"
+    expected["shim"]["tls-mode"] = "cert-proxy"
+    expected["cvm-network"] = {"inbound-ports": [22]}
+    if actual != expected or row["repo"] != REPO or row["current_tag"] != TAG:
+        raise RuntimeError(
+            "Sandbox differs from reviewed pinned template and allowed personal settings"
+        )
+    digest = hashlib.sha256(row["config"].encode()).hexdigest()
+    if row["config_name"] != "/tinfoil/containers/" + digest:
+        raise RuntimeError("Sandbox config bytes do not match its content reference")
+    source = "tinfoil/containers@" + digest + "@sha256:" + digest
+    pin = DIRECTORY / (row["id"] + "-reviewed.json")
+    if pin.exists() and json.loads(pin.read_text())["source"] != source:
+        raise RuntimeError("Previously reviewed Sandbox configuration changed")
+    save(
+        pin,
+        {
+            "source": source,
+            "base_release": REPO + "@" + TAG,
+            "template_sha256": expected_sha,
+        },
+    )
+    return source
 
 
 def ssh(command, timeout=120):

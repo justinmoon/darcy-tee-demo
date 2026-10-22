@@ -21,7 +21,7 @@ owner = (
     .hex()
 )
 config = {
-    "cvm-version": "0.14.15",
+    "cvm-version": "0.14.15@sha256:51166e30f9292cbddf28d493cac6f12d42a9b8aa75bb9a1b5cf759f02f8b7bf4",
     "cpus": 2,
     "memory": 8192,
     "networks": {"internet": {"egress": "open"}},
