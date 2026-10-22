@@ -1,0 +1,16 @@
+{
+  "location": "local Docker Linux runtime on Apple Silicon Mac; not a cloud TEE harness",
+  "inference": "real Tinfoil gpt-oss-120b through official verified proxy",
+  "tau_revision": "aeeaf2b77f44019c9a982766fe35417f98cf92e0",
+  "image_id": "sha256:203280574f47e6e4bb5a0908883f8aeee909920204c7361506cb64ce663da84d",
+  "mocked_components": [],
+  "hidden_file_challenge": "passed",
+  "tools": [
+    "read",
+    "shell",
+    "read"
+  ],
+  "fault": "invalid harness YAML, actual Tau startup failure",
+  "owner_control_after_failure": "reachable",
+  "cloud_e2e": "pending"
+}
