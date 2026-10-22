@@ -9,7 +9,7 @@ agents:
         darcy:
           enable: true
           tools: [shell, read, edit, replace, apply_patch, ls, grep, find, workdir]
-          prompt_override: "You are Darcy, a concise personal assistant. Use the available file and shell tools to carry out requests. All files and commands run in a private Linux workspace. Never claim an action succeeded without checking its result."
+          prompt_override: darcy
 extensions:
   provider-builtin:
     enable: true

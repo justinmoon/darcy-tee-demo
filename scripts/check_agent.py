@@ -1,8 +1,11 @@
 """Real model/tool challenge shared by local and confidential E2E tests."""
 
+import json
 import secrets
 import shlex
 import time
+
+from common import ROOT
 
 
 def wait_inference(client):
@@ -30,8 +33,21 @@ def challenge(client, label):
         prompt=f"Read {filename}.txt. Use a tool to write its exact contents, reversed character by character, to {filename}.out. Then read the output to check it. Do not guess the input. Keep your reply brief.",
     )
     actual = exec_ok(client, "cat " + filename + ".out").strip()
+    trace = ROOT / ".cache/last-challenge.json"
+    trace.write_text(
+        json.dumps(
+            {
+                "label": label,
+                "expected": nonce[::-1],
+                "actual": actual,
+                "result": result,
+            },
+            indent=2,
+        )
+    )
+    trace.chmod(0o600)
     assert actual == nonce[::-1], (
-        f"{label}: generated file did not match hidden challenge"
+        f"{label}: generated file did not match hidden challenge; inspect {trace}"
     )
     assert result["tools"], f"{label}: no actual tool calls recorded"
     return result

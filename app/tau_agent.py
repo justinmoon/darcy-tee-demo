@@ -22,6 +22,10 @@ def configure(root, model, provider_url="http://127.0.0.1:8081/v1"):
     (config / "harness.yaml").write_bytes(
         Path(__file__).with_name("harness.yaml").read_bytes()
     )
+    (config / "prompts").mkdir(exist_ok=True)
+    (config / "prompts/darcy.hbs").write_bytes(
+        Path(__file__).with_name("darcy.hbs").read_bytes()
+    )
     # Keyless only toward the owned loopback gateway, which holds the inference credential.
     profile = {
         "kind": "chat_completions",
@@ -63,7 +67,7 @@ def run(root, prompt, model, timeout=180):
             stdout=subprocess.PIPE,
             stderr=error,
             start_new_session=True,
-            bufsize=0,
+            bufsize=-1,
         )
         messages = queue.Queue(maxsize=32)
 
@@ -101,6 +105,7 @@ def run(root, prompt, model, timeout=180):
         text = ""
         tools = []
         failure = None
+        failure_notice = None
         finished = False
         try:
             while time.monotonic() - started < timeout:
@@ -118,7 +123,8 @@ def run(root, prompt, model, timeout=180):
                     continue
                 if isinstance(frame, BaseException):
                     raise RuntimeError(
-                        "Tau stream ended: " + log.read_text(errors="replace")[-2500:]
+                        f"Tau stream ended ({type(frame).__name__}: {frame}; exit={child.poll()}): "
+                        + log.read_text(errors="replace")[-2500:]
                     )
                 if frame.get("message") == "disconnect":
                     raise RuntimeError("Tau disconnected: " + str(frame.get("payload")))
@@ -128,6 +134,12 @@ def run(root, prompt, model, timeout=180):
                 event = delivery["event"]
                 kind = event["event"]
                 p = event["payload"]
+                if kind == "harness.notice" and p.get("kind") == "harness.failure":
+                    failure_notice = p.get("message")
+                if kind == "agent.prompt_failed":
+                    raise RuntimeError(
+                        failure_notice or p.get("message", "prompt failed")
+                    )
                 if len(events) >= MAX_EVENTS:
                     raise RuntimeError("event limit reached")
                 if (

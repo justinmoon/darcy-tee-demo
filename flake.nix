@@ -23,7 +23,7 @@
       sourceRoot = "."; installPhase = "mkdir -p $out/bin; cp tinfoil $out/bin/";
     };
     env = linux.buildEnv { name = "darcy-tee-env";
-      paths = [ (buildTau linux) (python linux) cli linux.bashInteractive linux.coreutils linux.curl linux.git linux.gnugrep linux.gnused linux.findutils linux.cacert ];
+      paths = [ (buildTau linux) (python linux) cli linux.bashInteractive linux.coreutils linux.curl linux.git linux.gnugrep linux.gnused linux.findutils linux.gawk linux.util-linuxMinimal linux.openssh linux.gnutar linux.gzip linux.cacert ];
       pathsToLink = [ "/bin" "/etc" ];
     };
     app = linux.runCommand "darcy-tee-app" {} ''
@@ -33,8 +33,9 @@
   in {
     devShells.aarch64-darwin.default = mac.mkShell { packages = [ (python mac) mac.just mac.skopeo mac.ruff ]; };
     packages.aarch64-darwin = {
-      image = linux.dockerTools.buildLayeredImage {
+      image = mac.dockerTools.buildLayeredImage {
         name = "ghcr.io/justinmoon/darcy-tee-demo"; tag = "dev";
+        architecture = "amd64";
         contents = [ env app ]; maxLayers = 25;
         extraCommands = ''
           mkdir -p tmp workspace etc
