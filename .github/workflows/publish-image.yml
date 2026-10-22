@@ -1,0 +1,26 @@
+name: Publish prebuilt Nix image
+on:
+  workflow_dispatch:
+    inputs:
+      asset_tag:
+        description: Release holding image.tar.gz built from this source
+        required: true
+        type: string
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Load and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          ASSET_TAG: ${{ inputs.asset_tag }}
+        run: |
+          set -euo pipefail
+          gh release download "$ASSET_TAG" --pattern image.tar.gz
+          docker load -i image.tar.gz
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "ghcr.io/$GH_REPO:dev"
