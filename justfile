@@ -20,6 +20,9 @@ account:
     nix develop --command python3 scripts/account.py
 load-image:
     docker load -i .cache/image
+stage-image:
+    ln -sfn image .cache/image.tar.gz
+    shasum -a 256 .cache/image.tar.gz
 local-e2e:
     nix develop --command python3 scripts/local_e2e.py
 deploy *args:
