@@ -34,7 +34,7 @@ with Client(ENDPOINT,REPO,owner='/workspace/remote-owner.key',cli='/bin/tinfoil'
     return repair_with_helper(helper, files=files)
 
 
-def repair_with_helper(helper, network=None, files=None):
+def repair_with_helper(helper, network=None, files=None, model="kimi-k3"):
     with LocalContainer(
         network=network, alias="recovery-agent" if network else None
     ) as host:
@@ -42,7 +42,7 @@ def repair_with_helper(helper, network=None, files=None):
         host.request(
             "initialize",
             inference_key=credentials()["TINFOIL_API_KEY"],
-            model="gpt-oss-120b",
+            model=model,
         )
         for name in ["client.py", "common.py"]:
             put(host, "/workspace/" + name, (ROOT / "scripts" / name).read_bytes())

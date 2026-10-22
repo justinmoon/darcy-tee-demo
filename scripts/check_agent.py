@@ -30,7 +30,7 @@ def challenge(client, label):
     exec_ok(client, "printf %s " + shlex.quote(nonce) + " > " + filename + ".txt")
     result = client.request(
         "run",
-        prompt=f"Read {filename}.txt. Use a tool to write its exact contents, reversed character by character, to {filename}.out. Then read the output to check it. Do not guess the input. Keep your reply brief.",
+        prompt=f"Read {filename}.txt. Then use shell to run a program that reads that input file at execution time and reverses its contents into {filename}.out. Do not reverse the text mentally or transcribe a guessed result. Finally read the output to check it. Keep your reply brief.",
     )
     actual = exec_ok(client, "cat " + filename + ".out").strip()
     trace = ROOT / ".cache/last-challenge.json"

@@ -164,7 +164,7 @@ def install():
     return image
 
 
-def repair(transport_only=False, tool_probe=False, debug_probe=False):
+def repair(transport_only=False, tool_probe=False, debug_probe=False, model="kimi-k3"):
     # Give the local agent only this boot's SSH owner identity and attested pin.
     profile = CONFIG.read_text()
     identity_line = next(
@@ -187,7 +187,7 @@ print(json.dumps(dict(returncode=r.returncode,stdout=r.stdout,stderr=r.stderr)))
         host.request(
             "initialize",
             inference_key=credentials()["TINFOIL_API_KEY"],
-            model="gpt-oss-120b",
+            model=model,
         )
         put(host, "/workspace/sandbox-owner", Path(identity).read_bytes())
         put(host, "/workspace/known_hosts", PINS.read_bytes())
@@ -217,7 +217,16 @@ print(json.dumps(dict(returncode=r.returncode,stdout=r.stdout,stderr=r.stderr)))
                 "remote shell wrapper failed: " + wrapped["stderr"][-2000:]
             )
         if transport_only:
-            return {"transport": "real pinned SSH passed", "model_calls": 0}
+            catalog = host.request(
+                "exec",
+                command="HOME=/workspace XDG_CONFIG_HOME=/workspace/config XDG_STATE_HOME=/tmp/catalog-state DARCY_OUTER_SANDBOX=tinfoil-container timeout 20 tau --role darcy dev print-tools > /workspace/effective-tools.txt 2>&1; code=$?; grep -n -E 'wait|remote_shell|error' /workspace/effective-tools.txt | head -n 20; exit $code",
+            )
+            save(DIRECTORY / "effective-tools.json", catalog)
+            return {
+                "transport": "real pinned SSH passed",
+                "model_calls": 0,
+                "effective_tools": catalog,
+            }
         if debug_probe:
             debug = """import json
 from pathlib import Path
