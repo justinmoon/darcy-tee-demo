@@ -215,12 +215,12 @@ def main():
         help="Resume an already installed test agent",
     )
     args = parser.parse_args()
-    wait_started()
-    print(attest(), flush=True)
-    image = None if args.installed else install()
     evidence = DIRECTORY / "e2e"
     evidence.mkdir(exist_ok=True)
     try:
+        wait_started()
+        print(attest(), flush=True)
+        image = None if args.installed else install()
         with Tunnel() as remote:
             auth = check(remote.base, remote.key)
             initialize(remote)

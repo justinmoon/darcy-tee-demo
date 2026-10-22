@@ -6,7 +6,7 @@ import time
 
 from auth_checks import check
 from check_agent import challenge, inject_failure, wait_inference
-from client import Client
+from client import Client, ready_client
 from common import ROOT, credentials
 from recovery import repair
 
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     started = time.monotonic()
     evidence = ROOT / ".cache/cloud-e2e"
     evidence.mkdir(parents=True, exist_ok=True)
-    with Client(args.endpoint, args.repo) as remote:
+    with ready_client(args.endpoint, args.repo) as remote:
         print("Verified expected Container release", flush=True)
         try:
             with Client(args.endpoint, "tinfoilsh/confidential-agent-sandbox@v0.1.25"):

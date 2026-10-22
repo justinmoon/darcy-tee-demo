@@ -31,6 +31,7 @@ class BodyTests(unittest.TestCase):
                     self.send_response(200)
                 except Exception:
                     self.send_response(400)
+                self.send_header("Content-Length", "0")
                 self.end_headers()
 
         server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)

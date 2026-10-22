@@ -11,10 +11,36 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from contextlib import contextmanager
 from pathlib import Path
 
 from common import ROOT, credentials
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+
+@contextmanager
+def ready_client(endpoint, repo, timeout=240):
+    """Retry only pre-credential fetch failures while a new boot becomes ready."""
+    deadline = time.monotonic() + timeout
+    waiting = False
+    while True:
+        client = Client(endpoint, repo)
+        try:
+            client.__enter__()
+            break
+        except RuntimeError as error:
+            if "fetch error" not in str(error) or time.monotonic() >= deadline:
+                raise
+            if not waiting:
+                print(
+                    "Waiting for attestation service; no credentials sent", flush=True
+                )
+                waiting = True
+            time.sleep(5)
+    try:
+        yield client
+    finally:
+        client.__exit__(None, None, None)
 
 
 class Client:
