@@ -6,7 +6,7 @@ networks:
     egress: open
 containers:
 - name: darcy
-  image: ghcr.io/justinmoon/darcy-tee-demo@sha256:688ebfea10b6d761f71001b818b28438e67ac8213e97b1965caecad998702431
+  image: ghcr.io/justinmoon/darcy-tee-demo@sha256:3c60b36ab4d2e11cdaf29720ad1e0735152bafbcfd59999c15bdabc8db6f237f
   user: 1000:1000
   read_only: true
   networks:
