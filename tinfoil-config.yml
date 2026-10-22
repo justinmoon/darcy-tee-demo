@@ -1,0 +1,35 @@
+cvm-version: 0.14.7
+cpus: 2
+memory: 8192
+networks:
+  internet:
+    egress: open
+containers:
+- name: darcy
+  image: ghcr.io/justinmoon/darcy-tee-demo@sha256:688ebfea10b6d761f71001b818b28438e67ac8213e97b1965caecad998702431
+  user: 1000:1000
+  read_only: true
+  networks:
+  - internet
+  pids_limit: 256
+  restart: on-failure
+  env:
+  - DARCY_OWNER_PUBLIC_KEY: 1cccf12d9fad73b10e11803a4e6ef06ca1bb4b9dd373e4b140daab2efc6b18be
+  tmpfs:
+    /tmp: size=128m,mode=1777
+    /workspace: size=1g,uid=1000,gid=1000
+  healthcheck:
+    test:
+    - CMD
+    - /bin/curl
+    - -sf
+    - http://127.0.0.1:8080/health
+    interval: 5s
+    timeout: 3s
+    retries: 12
+    start_period: 10s
+shim:
+  upstream-port: 8080
+  paths:
+  - /health
+  - /control
