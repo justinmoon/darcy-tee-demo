@@ -1,7 +1,9 @@
 # Containers and Sandboxes
 
 Source review: 2026-10-21. Sandbox access changed from disabled to enabled during
-the demo build. Live Sandbox validation remains pending.
+the demo build. The managed Sandbox passed the full real E2E: attestation, disk
+unlock, Tau tool tasks, local-agent repair, VM restart, workspace/system-overlay
+persistence, fresh host key and another task. [Proof](../evidence/sandbox-e2e.json).
 
 | | Containers | Sandboxes |
 |---|---|---|
@@ -30,8 +32,29 @@ are beta. The inference API and attestation in general are not all labeled beta.
 The account gate controls Sandbox access; it does not establish a public launch
 date or support promise.
 
-Decision: complete the small Containers demo first, then test Sandboxes before
-building our own persistent workspace/SSH/credential service.
+Current demo choice: managed Sandbox. Its attested SSH and encrypted workspace
+remove much of the storage and owner-access work we would otherwise write.
+Install our pinned app image through owner SSH after checking the base config.
+The app image does not become part of the base measurement merely by installing
+it. It remains the owner's workload in the verified VM.
+
+Account findings from actual API calls:
+
+- The org now permits the official Sandbox template. We use release `v0.1.25`.
+- Its current config includes owner-specific values. Compare the whole YAML with
+  a SHA-pinned official release asset; allow only our owner key, instance ID,
+  disk size, direct networking and required SSH/TLS fields; then freeze the exact
+  config content reference. `scripts/sandbox.py` performs this check before unlock.
+- A custom Container's current local-config path returned HTTP 403:
+  `config deployments are not enabled for this organization`. Sandbox access
+  does not grant this separate feature flag.
+- The legacy GitHub Container path accepted older bare runtime versions, but did
+  not parse the manifest pin required by the current CLI. It tried an invalid
+  download URL. This differs from the org's explicit local-config account gate.
+- An initial 4 GB Sandbox failed to boot. The 16 GB instance works; volumes use
+  decimal GB. Three unused test instances and the blank detached 4 GB volume
+  were deleted. The working 16 GB encrypted disk remains for replay.
+
 An owner recovery path helps when Tau fails. It cannot revive a dead confidential
 VM or unlock a disk after loss of its keys; those need a restart/recovery design.
 

@@ -1,0 +1,47 @@
+{
+  "mocked_components": [],
+  "base_release": "tinfoilsh/confidential-agent-sandbox@v0.1.25",
+  "owner_installed_image": "ghcr.io/justinmoon/darcy-tee-demo@sha256:dc2a9288e8fe6b5dce2a393acfafb232f89009374859abc315db2f5184be726e",
+  "authorization": {
+    "anonymous": "denied",
+    "wrong_owner": "denied",
+    "signed_owner": "accepted",
+    "replay": "denied"
+  },
+  "first_tools": [
+    "shell",
+    "read",
+    "read"
+  ],
+  "recovery_tools": [
+    "remote_shell",
+    "remote_shell",
+    "remote_shell",
+    "remote_shell",
+    "remote_shell",
+    "remote_shell",
+    "remote_shell",
+    "remote_shell"
+  ],
+  "repaired_tools": [
+    "read",
+    "shell",
+    "read"
+  ],
+  "restarted_tools": [
+    "read",
+    "shell",
+    "read"
+  ],
+  "workspace_persisted": true,
+  "system_overlay_persisted": true,
+  "boot_key_rotated": true,
+  "monitor_tested": false,
+  "result": "passed",
+  "inference": "real Tinfoil gpt-oss-120b through verified proxy",
+  "failure": "actual Tau invalid YAML startup error",
+  "repair_location": "real local Tau on this Mac Linux runtime; pinned owner SSH into cloud",
+  "image_archive_sha256": "b624fe89a2f1dcffe1e3db5d13e308bfd020909830c11c122a24ab3c8290548a",
+  "tau_revision": "aeeaf2b77f44019c9a982766fe35417f98cf92e0",
+  "completed_at": "2026-10-22T03:11:17Z"
+}

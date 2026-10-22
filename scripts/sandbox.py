@@ -81,7 +81,7 @@ def lifecycle(action, name=ALIAS, workspace_size=16):
         previous = json.loads(STATE.read_text())
         route = "/api/containers/" + previous["id"]
         row = admin(route)
-        already = (action == "stop" and row["status"] == "stopped") or (
+        already = (action == "stop" and row["status"] in {"stopped", "stopping"}) or (
             action == "start"
             and row["status"] in {"running", "started", "deploying", "starting"}
         )

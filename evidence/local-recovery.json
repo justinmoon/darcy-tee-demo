@@ -11,7 +11,6 @@
   "first_tools": [
     "read",
     "shell",
-    "shell",
     "read"
   ],
   "recovery_tools": [
@@ -25,10 +24,12 @@
     "remote_shell"
   ],
   "repaired_tools": [
-    "read",
     "shell",
     "read"
   ],
   "failure": "actual Tau invalid YAML startup error",
-  "cloud_attestation_tested": false
+  "cloud_attestation_tested": false,
+  "real_remote_delay_seconds": 3,
+  "all_remote_calls_returned_terminal_results": true,
+  "image_archive_sha256": "b624fe89a2f1dcffe1e3db5d13e308bfd020909830c11c122a24ab3c8290548a"
 }

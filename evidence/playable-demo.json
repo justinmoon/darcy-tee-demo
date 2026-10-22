@@ -1,0 +1,10 @@
+{
+  "result": "passed",
+  "command": "just sandbox-chat",
+  "verified_answer": "338350",
+  "tools_used": true,
+  "mocked_components": [],
+  "compute_status": "stopped",
+  "encrypted_workspace_retained_gb": 16,
+  "checked_at": "2026-10-22T03:14:23.103015+00:00"
+}

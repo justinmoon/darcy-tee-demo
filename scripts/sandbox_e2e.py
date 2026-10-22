@@ -1,6 +1,7 @@
 """Real Sandbox task, owner SSH recovery, and encrypted-disk restart proof."""
 
 import argparse
+import datetime
 import json
 import shlex
 import socket
@@ -267,11 +268,14 @@ def main():
     args = parser.parse_args()
     evidence = DIRECTORY / "e2e"
     evidence.mkdir(exist_ok=True)
+    (evidence / "summary.json").unlink(missing_ok=True)
+    started = datetime.datetime.now(datetime.timezone.utc).isoformat()
     try:
         lifecycle("start")
         wait_started()
         print(attest(), flush=True)
         image = install()
+        print("Pinned application image installed", flush=True)
         if args.transport_only:
             print(json.dumps(repair(transport_only=True)), flush=True)
             return
@@ -283,12 +287,18 @@ def main():
             initialize(remote)
             first = challenge(remote, "Sandbox agent")
             save(evidence / "before.json", first)
+            print("Cloud agent passed hidden-file task", flush=True)
             failure = inject_failure(remote)
             save(evidence / "fault.json", {"error": failure})
+            print(
+                "Real harness failure confirmed; owner control still works", flush=True
+            )
             recovery = repair()
             save(evidence / "recovery.json", recovery)
+            print("Local recovery agent finished; checking remote files", flush=True)
             last = challenge(remote, "repaired Sandbox agent")
             save(evidence / "after.json", last)
+            print("Repaired cloud agent passed fresh task", flush=True)
         import secrets
 
         nonce = secrets.token_hex(24)
@@ -317,11 +327,14 @@ def main():
         system = command("cat /usr/local/share/darcy-persistence.txt").strip() == nonce
         assert workspace and system, "encrypted workspace or system overlay lost state"
         assert old_pins != PINS.read_text(), "expected fresh boot SSH key"
+        print("Workspace and system overlay survived VM restart", flush=True)
         with Tunnel() as remote:
             initialize(remote)
             restarted = challenge(remote, "restarted Sandbox agent")
             save(evidence / "restarted.json", restarted)
         summary = dict(
+            started_at=started,
+            finished_at=datetime.datetime.now(datetime.timezone.utc).isoformat(),
             mocked_components=[],
             base_release=REPO + "@" + TAG,
             owner_installed_image=image,

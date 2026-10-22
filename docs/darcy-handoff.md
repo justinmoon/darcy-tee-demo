@@ -58,3 +58,10 @@ Further source checks and real recovery tests:
 
 Latest read-only check: original Darcy remains on `e9da7ed`; its bridge still
 uses `bufsize=0`. No original files or processes changed.
+
+Full cloud Sandbox E2E now passed with `gpt-oss-120b`: real hidden-file task,
+actual YAML failure, eight real local-agent SSH tool calls to diagnose/repair,
+fresh remote task, full VM stop/start, encrypted workspace and system-overlay
+markers intact, changed attested host key, another remote task. See
+`evidence/sandbox-e2e.json`. Modern custom Containers still need the org config
+deployment flag. This does not qualify Darcy desktop's separate provider path.
